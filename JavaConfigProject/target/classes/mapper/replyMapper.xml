@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+    
+    
+<mapper namespace="a.s.h.dao.ReplyDao">
+	<resultMap type="a.s.h.dto.ReplyDto" id="replyResultMap"> 
+		<result column="REPLY_CD" property="replyCd"/> 
+		<result column="REPLY_USER" property="replyUser"/> 
+		<result column="REPLY_NO" property="replyNo"/>
+		<result column="REPLY_CONTENT" property="replyContent"/>
+		<result column="UREPLY_CD" property="ureplyCd"/>
+		<result column="UREPLY_USER" property="ureplyUser"/>
+		<result column="BOARD_CD" property="boardCd"/>
+		<result column="WRITE_DATE" property="writeDate"/>
+		<result column="UPDATE_DATE" property="updateDate"/>
+	</resultMap>
+	
+	<select id="replyList" parameterType="a.s.h.dto.BoardDto" resultType="java.util.List" resultMap="replyResultMap">
+		SELECT *
+		FROM REPLY
+		WHERE BOARD_CD = #{boardCd}
+		START WITH REPLY_CD = (
+								SELECT R.REPLY_CD 
+								FROM REPLY R 
+								WHERE R.BOARD_CD = #{boardCd}
+								AND ROWNUM = 1
+								)
+		CONNECT BY PRIOR REPLY_CD = UREPLY_CD
+	</select>
+	
+	<insert id="replyReg" parameterType="a.s.h.dto.ReplyDto">
+		/*댓글 등록*/
+		<selectKey order="BEFORE" resultType="String" keyProperty="replyCd">
+			SELECT 
+				'REP' || TO_CHAR(SYSDATE,'YYYYMMDD') || reply_seq.NEXTVAL
+			FROM DUAL 	
+		</selectKey>
+		INSERT INTO REPLY
+		(REPLY_CD, REPLY_USER, REPLY_NO, REPLY_CONTENT, UREPLY_CD, UREPLY_USER, BOARD_CD, WRITE_DATE, UPDATE_DATE)
+		VALUES
+		(#{replyCd}, #{replyUser}, reply_seq.CURRVAL, #{replyContent}, #{ureplyCd, jdbcType=VARCHAR}, #{ureplyUser, jdbcType=VARCHAR}, #{boardCd}, TO_CHAR(SYSDATE, 'YYYYMMDDHHMISS'), '')
+	</insert>
+	
+	<select id="replyGet" parameterType="a.s.h.dto.ReplyDto" resultType="a.s.h.dto.ReplyDto" resultMap="replyResultMap">
+		/*등록 댓글 가져오기*/
+		SELECT REPLY_CD, REPLY_USER, REPLY_NO, REPLY_CONTENT, UREPLY_CD, UREPLY_USER, BOARD_CD, WRITE_DATE, UPDATE_DATE
+		FROM REPLY
+		WHERE REPLY_CD = #{replyCd} 
+	</select>
+</mapper>

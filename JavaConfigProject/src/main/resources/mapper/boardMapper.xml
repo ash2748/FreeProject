@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+    
+    
+    
+<mapper namespace="a.s.h.dao.BoardDao">
+	<resultMap type="a.s.h.dto.BoardDto" id="boardList"> 
+		<result column="board_cd" property="boardCd"/> 
+		<result column="board_no" property="boardNo"/> 
+		<result column="board_title" property="boardTitle"/>
+		<result column="board_content" property="boardContent"/>
+		<result column="board_cnt" property="boardCnt"/>
+		<result column="write_user" property="writeUser"/>
+		<result column="write_date" property="writeDate"/>
+		<result column="update_user" property="updateUser"/>
+		<result column="update_date" property="updateDate"/>
+	</resultMap>
+	
+	<select id="boardCount"  parameterType="a.s.h.dto.BoardDto"  resultType="Integer">
+		SELECT COUNT(*)
+		FROM
+			(SELECT
+				 ROW_NUMBER() OVER (ORDER BY BOARD_NO DESC) AS RNUM 
+				,BOARD_CD
+				,BOARD_NO
+				,BOARD_TITLE
+				,BOARD_CONTENT
+				,BOARD_CNT
+				,WRITE_USER
+				,TO_CHAR(TO_DATE(SUBSTR(WRITE_DATE,0,8), 'YYYY.MM.DD')) AS WRITE_DATE
+				,UPDATE_USER
+				,UPDATE_DATE
+			 FROM BOARD
+			 WHERE 1=1
+			 <choose>
+				 <when test='searchOption eq "A"'>
+			 		AND WRITE_USER like '%' || #{searchKeyword} || '%' or BOARD_TITLE like '%' || #{searchKeyword} || '%'
+			 	</when>
+			 	<when test='searchOption eq "T"'>
+			 		AND BOARD_TITLE like '%' || #{searchKeyword} || '%'
+			 	</when>
+			 	<when test='searchOption eq "W"'>
+			 		AND WRITE_USER like '%' || #{searchKeyword} || '%'
+			 	</when>
+			 	
+			 </choose>
+			 )
+	</select>
+	
+	<select id="boardList"  parameterType="hashMap" resultType="a.s.h.dto.BoardDto" resultMap="boardList">
+		/*게시글 리스트 가져오기*/
+		SELECT  RNUM
+			   ,BOARD_CD
+			   ,BOARD_NO
+			   ,BOARD_TITLE
+		       ,BOARD_CONTENT
+			   ,BOARD_CNT
+			   ,WRITE_USER
+			   ,TO_CHAR(TO_DATE(SUBSTR(WRITE_DATE,0,8), 'YYYY.MM.DD')) AS WRITE_DATE
+			   ,UPDATE_USER
+			   ,UPDATE_DATE
+		FROM
+			(SELECT
+				 ROW_NUMBER() OVER (ORDER BY BOARD_NO DESC) AS RNUM 
+				,BOARD_CD
+				,BOARD_NO
+				,BOARD_TITLE
+				,BOARD_CONTENT
+				,BOARD_CNT
+				,WRITE_USER
+				,TO_CHAR(TO_DATE(SUBSTR(WRITE_DATE,0,8), 'YYYY.MM.DD')) AS WRITE_DATE
+				,UPDATE_USER
+				,UPDATE_DATE
+			 FROM BOARD
+			 WHERE 1=1
+			 <choose>
+			 	<when test='boardDto.searchOption eq "A"'>
+			 		AND WRITE_USER like '%' || #{boardDto.searchKeyword} || '%' or BOARD_TITLE like '%' || #{boardDto.searchKeyword} || '%'
+			 	</when>
+			 	<when test='boardDto.searchOption eq "T"'>
+			 		AND BOARD_TITLE like '%' || #{boardDto.searchKeyword} || '%'
+			 	</when>
+			 	<when test='boardDto.searchOption eq "W"'>
+			 		AND WRITE_USER like '%' || #{boardDto.searchKeyword} || '%'
+			 	</when>
+			 </choose>
+			 )
+			 WHERE RNUM BETWEEN #{pagingDto.fromArticleNum} AND #{pagingDto.toArticleNum}
+	</select>
+	
+	<select id="goView" parameterType="String" resultType="a.s.h.dto.BoardDto" resultMap="boardList">
+		/*게시글 상세 보기*/
+		SELECT 
+			BOARD_CD,
+			BOARD_NO,
+			BOARD_TITLE,
+			BOARD_CONTENT,
+			BOARD_CNT,
+			WRITE_USER,
+			TO_CHAR(TO_DATE(SUBSTR(WRITE_DATE,0,8), 'YYYY.MM.DD')) AS WRITE_DATE,
+			UPDATE_USER,
+			UPDATE_DATE
+		FROM BOARD
+		WHERE BOARD_CD = #{boardCd}
+	</select>
+	
+	<update id="upCount">
+		/*조회횟수 UP*/
+		UPDATE BOARD
+		SET	   BOARD_CNT = BOARD_CNT + 1
+		WHERE  BOARD_CD  = #{boardCd}
+	</update>
+	
+	<select id="goModify" parameterType="string" resultType="a.s.h.dto.BoardDto" resultMap="boardList">
+		SELECT 
+			BOARD_CD,
+			BOARD_NO,
+			BOARD_TITLE,
+			BOARD_CONTENT,
+			BOARD_CNT,
+			WRITE_USER,
+			TO_CHAR(TO_DATE(SUBSTR(WRITE_DATE,0,8), 'YYYY.MM.DD')) AS WRITE_DATE,
+			UPDATE_USER,
+			UPDATE_DATE
+		FROM BOARD
+		WHERE BOARD_CD = #{boardCd}
+	</select>
+
+	<delete id="goDelete" parameterType="string" >
+		DELETE 
+		FROM BOARD 
+		WHERE BOARD_CD = #{boardCd} 
+	</delete>
+	
+	<insert id="boardReg" parameterType="a.s.h.dto.BoardDto">
+		/*게시글 등록*/
+		<selectKey order="BEFORE" resultType="String" keyProperty="boardCd">
+			SELECT 
+				'ASH' || TO_CHAR(SYSDATE,'YYYYMMDD') || board_seq.NEXTVAL
+			FROM DUAL 	
+		</selectKey>
+		INSERT INTO BOARD
+		(BOARD_CD, BOARD_NO, BOARD_TITLE, BOARD_CONTENT, BOARD_CNT, WRITE_USER, WRITE_DATE)
+		VALUES
+		(#{boardCd}, board_seq.CURRVAL, #{boardTitle}, #{boardContent}, 0, #{writeUser}, TO_CHAR(SYSDATE, 'YYYYMMDDHHMISS'))
+	</insert>
+	
+	<update id="goModifyComplete" parameterType="a.s.h.dto.BoardDto">
+		UPDATE BOARD
+		SET	BOARD_TITLE		= #{boardTitle},
+			BOARD_CONTENT 	= #{boardContent},
+			WRITE_USER		= #{writeUser},
+			UPDATE_USER		= #{writeUser},
+			UPDATE_DATE		= TO_CHAR(SYSDATE, 'YYYYMMDDHHMISS')
+		WHERE BOARD_CD 		= #{boardCd}
+	</update>
+</mapper>
